@@ -1,0 +1,183 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function userExists(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function userHasRole(uid, expectedRole) {
+      return userExists(uid) && get(/databases/$(database)/documents/users/$(uid)).data.role == expectedRole;
+    }
+
+    function role() {
+      return isSignedIn() && userExists(request.auth.uid)
+        ? userDoc(request.auth.uid).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return role() == 'admin';
+    }
+
+    function isDoctor() {
+      return role() == 'doctor';
+    }
+
+    function isPatient() {
+      return role() == 'patient';
+    }
+
+    function assignedDoctorIdFor(uid) {
+      return userExists(uid) ? get(/databases/$(database)/documents/users/$(uid)).data.assignedDoctorId : null;
+    }
+
+    function doctorOwnsPatient(patientUid) {
+      return isDoctor() &&
+        userHasRole(patientUid, 'patient') &&
+        assignedDoctorIdFor(patientUid) == request.auth.uid;
+    }
+
+    function patientBelongsToDoctor(doctorUid) {
+      return isPatient() &&
+        userHasRole(doctorUid, 'doctor') &&
+        assignedDoctorIdFor(request.auth.uid) == doctorUid;
+    }
+
+    function canMessageUser(targetUid) {
+      return isSignedIn() && (
+        doctorOwnsPatient(targetUid) ||
+        patientBelongsToDoctor(targetUid) ||
+        (isAdmin() && userExists(targetUid))
+      );
+    }
+
+    function canCreateMessageNotification() {
+      return request.resource.data.type == 'message' &&
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.userId is string &&
+        request.resource.data.receiverId is string &&
+        (
+          request.resource.data.userId == request.auth.uid ||
+          request.resource.data.userId == request.resource.data.receiverId
+        ) &&
+        canMessageUser(request.resource.data.receiverId);
+    }
+
+    function canCreateOperationalNotification() {
+      return request.resource.data.type != 'message' &&
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.userId is string &&
+        (
+          (isDoctor() && doctorOwnsPatient(request.resource.data.userId)) ||
+          (isAdmin() && userExists(request.resource.data.userId))
+        );
+    }
+
+    match /users/{userId} {
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isAdmin() ||
+        (isDoctor() && resource.data.role == 'patient' && resource.data.assignedDoctorId == request.auth.uid) ||
+        (isPatient() && resource.data.role == 'doctor' && assignedDoctorIdFor(request.auth.uid) == userId)
+      );
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (
+          request.auth.uid == userId &&
+          request.resource.data.assignedDoctorId == resource.data.assignedDoctorId
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read: if isSignedIn() && (
+        (isPatient() && resource.data.patientId == request.auth.uid) ||
+        (isDoctor() && resource.data.doctorId == request.auth.uid) ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() &&
+        isDoctor() &&
+        request.resource.data.doctorId == request.auth.uid &&
+        doctorOwnsPatient(request.resource.data.patientId);
+      allow update: if isSignedIn() && (
+        (
+          isDoctor() &&
+          resource.data.doctorId == request.auth.uid &&
+          doctorOwnsPatient(resource.data.patientId)
+        ) ||
+        isAdmin()
+      );
+      allow delete: if isSignedIn() && (
+        (
+          isDoctor() &&
+          resource.data.doctorId == request.auth.uid &&
+          doctorOwnsPatient(resource.data.patientId)
+        ) ||
+        isAdmin()
+      );
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isSignedIn() && (
+        (isPatient() && resource.data.patientId == request.auth.uid) ||
+        (isDoctor() && resource.data.doctorId == request.auth.uid) ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() &&
+        isDoctor() &&
+        request.resource.data.doctorId == request.auth.uid &&
+        doctorOwnsPatient(request.resource.data.patientId);
+      allow update: if isSignedIn() && (
+        (
+          isDoctor() &&
+          resource.data.doctorId == request.auth.uid &&
+          doctorOwnsPatient(resource.data.patientId)
+        ) ||
+        isAdmin()
+      );
+      allow delete: if isSignedIn() && (
+        (
+          isDoctor() &&
+          resource.data.doctorId == request.auth.uid &&
+          doctorOwnsPatient(resource.data.patientId)
+        ) ||
+        isAdmin()
+      );
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (
+        canCreateMessageNotification() ||
+        canCreateOperationalNotification()
+      );
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (
+        isAdmin() ||
+        (
+          resource.data.type == 'message' &&
+          (
+            resource.data.userId == request.auth.uid ||
+            resource.data.senderId == request.auth.uid
+          )
+        )
+      );
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+  }
+}

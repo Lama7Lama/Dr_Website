@@ -1,0 +1,76 @@
+{
+  "architecture": "efficientnet_b3",
+  "num_classes": 5,
+  "class_names": [
+    "No DR",
+    "Mild",
+    "Moderate",
+    "Severe",
+    "Proliferative"
+  ],
+  "image_size": 300,
+  "batch_size": 32,
+  "use_imagenet_normalization": true,
+  "stage1_epochs": 5,
+  "max_epochs": 35,
+  "head_lr": 0.001,
+  "finetune_lr": 5e-05,
+  "unfreeze_last_blocks": 5,
+  "weight_decay": 0.0001,
+  "early_stopping_patience": 5,
+  "label_smoothing": 0.02,
+  "ordinal_loss_weight": 0.25,
+  "use_weighted_sampler": true,
+  "sampler_power": 0.5,
+  "effective_num_beta": 0.9999,
+  "apply_fundus_crop": true,
+  "black_border_threshold": 10,
+  "use_test_time_augmentation": true,
+  "use_threshold_optimization": true,
+  "class_weights": [
+    0.13164299726486206,
+    1.083394169807434,
+    0.1737772822380066,
+    2.8561179637908936,
+    0.7550677061080933
+  ],
+  "best_epoch": 10,
+  "best_val_qwk": 0.8304792642593384,
+  "best_ckpt_path": "/kaggle/working/ddr_efficientnet_b3/checkpoints/epoch09-valqwk0.8305.ckpt",
+  "pretrained_checkpoint": "/kaggle/input/models/lamanaif7/b3/pytorch/default/1/best_model-2.pth",
+  "pretrained_load_report": {
+    "missing_keys": [],
+    "unexpected_keys": []
+  },
+  "artifact_pth": "/kaggle/working/ddr_efficientnet_b3/best_model.pth",
+  "artifact_pkl": "/kaggle/working/ddr_efficientnet_b3/best_model.pkl",
+  "artifact_ckpt": "/kaggle/working/ddr_efficientnet_b3/checkpoints/epoch09-valqwk0.8305.ckpt",
+  "artifact_pt": "/kaggle/working/ddr_efficientnet_b3/best_model.pt",
+  "artifact_ptl": "/kaggle/working/ddr_efficientnet_b3/best_model.ptl",
+  "optimized_thresholds": [
+    0.6257799863815308,
+    1.3418660163879395,
+    2.2071499824523926,
+    3.179579973220825
+  ],
+  "val_qwk_argmax": 0.8288218809685115,
+  "val_qwk_thresholded": 0.8422095052392695,
+  "test_qwk_argmax": 0.8524773066549433,
+  "test_qwk_thresholded": 0.8670558546230901,
+  "test_sensitivity_macro": 0.7419491061478826,
+  "test_specificity_macro": 0.9400168599001038,
+  "test_per_class_sensitivity": [
+    0.8287234042553191,
+    0.5578947368421052,
+    0.6636904761904762,
+    0.8857142857142857,
+    0.7737226277372263
+  ],
+  "test_per_class_specificity": [
+    0.9542066027689031,
+    0.8682735426008968,
+    0.9386909693454847,
+    0.9452277657266811,
+    0.9936854190585533
+  ]
+}
